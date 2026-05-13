@@ -192,7 +192,21 @@ header {
   align-items: center;
   gap: 14px;
   max-width: 280px;
+  text-align: center;
 }
+
+.placeholder-inner > .ph-first,
+.placeholder-inner > .ph-next {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+/* Default: show first-launch text, hide after-scan text */
+.placeholder-inner > .ph-next { display: none; }
+/* After first scan, swap */
+.placeholder.has-scanned .placeholder-inner > .ph-first { display: none; }
+.placeholder.has-scanned .placeholder-inner > .ph-next { display: flex; }
 
 .placeholder-icon {
   width: 64px;
@@ -415,9 +429,11 @@ header {
   color: var(--cranberry);
 }
 .item-info .item-name {
-  font-weight: 600;
+  font-weight: 700;
   display: block;
-  margin-bottom: 2px;
+  margin-bottom: 4px;
+  font-size: 16px;
+  line-height: 1.3;
 }
 .item-info .item-meta {
   font-family: var(--font-display);
@@ -877,9 +893,18 @@ header {
             <circle cx="12" cy="13" r="4"/>
           </svg>
         </div>
-        <h2>Tap anywhere to start scanning</h2>
-        <p>Grant camera access when your phone asks. The scanner reads QR, UPC, EAN, Code 128, and most retail barcodes.</p>
-        <div class="tap-hint">Tap to begin</div>
+        <!-- First-launch content -->
+        <div class="ph-first">
+          <h2>Tap anywhere to start scanning</h2>
+          <p>Grant camera access when your phone asks. The scanner reads QR, UPC, EAN, Code 128, and most retail barcodes.</p>
+          <div class="tap-hint">Tap to begin</div>
+        </div>
+        <!-- After-scan content (shown once a scan has happened) -->
+        <div class="ph-next">
+          <h2>Tap for next scan</h2>
+          <p>Camera pauses between items. Review the scan, adjust the quantity, then add to your count.</p>
+          <div class="tap-hint">Tap when ready</div>
+        </div>
       </div>
     </div>
 
@@ -1254,7 +1279,6 @@ function setBarcode(value, format = '') {
     entryCard.classList.remove('armed');
     addBtn.disabled = true;
     addBtn.textContent = 'Add to count';
-    qtyHint.textContent = '';
     currentScanIsValid = true;
     currentScanItem = null;
     return;
@@ -1299,14 +1323,6 @@ function setBarcode(value, format = '') {
     itemInfoName.textContent = 'Not in catalog';
     itemInfoMeta.textContent = 'This barcode is not in the loaded inventory. Verify the item, the catalog, or clear the catalog to disable validation.';
     itemInfo.classList.add('show', 'unknown');
-  }
-
-  // Existing-count hint, only when valid (or no catalog)
-  if (currentScanIsValid) {
-    const existing = counts.find(c => c.barcode === currentBarcode);
-    qtyHint.textContent = existing && mergeDuplicates ? `Currently in session: ${existing.qty}` : '';
-  } else {
-    qtyHint.textContent = '';
   }
 }
 
@@ -1567,10 +1583,17 @@ async function startScanner() {
         playBeep();
       } else {
         // Unknown SKU — don't auto-focus quantity (it's blocked anyway).
-        // Distinct error pattern: 3 short pulses + low descending tone.
+        // Distinct error pattern: short pulses + low descending tone.
         vibrate([60, 60, 60, 60, 60]);
         playErrorBeep();
       }
+      // Single-shot mode: power the camera down after each read so the user
+      // taps to scan the next item. Saves battery, prevents accidental
+      // re-scans of items still in frame, and gives a clear "review then
+      // commit" rhythm. Use a tiny delay so the user sees the green/red
+      // flash and the beep doesn't get clipped by the camera teardown.
+      placeholder.classList.add('has-scanned');
+      setTimeout(() => stopScanner(), 250);
     });
 
     placeholder.classList.add('hidden');
