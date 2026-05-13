@@ -385,6 +385,11 @@ header {
   font-family: var(--font-body);
   font-size: 13.5px;
 }
+.barcode-display.success {
+  background: #1a7a3e;
+  border-color: #1a7a3e;
+  color: white;
+}
 
 .barcode-input {
   width: 100%;
@@ -912,6 +917,37 @@ function vibrate(pattern = 60) {
   if (navigator.vibrate) navigator.vibrate(pattern);
 }
 
+// Beep on successful scan — uses Web Audio API, no file needed
+let audioCtx = null;
+function playBeep() {
+  try {
+    // Create the audio context lazily; iOS requires it to be created after a user gesture
+    if (!audioCtx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      audioCtx = new AC();
+    }
+    // iOS sometimes suspends the context — resume before playing
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+
+    const now = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    // Clean, short, bright "ding" — two-stage tone like a real scanner
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(1200, now);
+    osc.frequency.exponentialRampToValueAtTime(1800, now + 0.08);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.35, now + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
+    osc.connect(gain).connect(audioCtx.destination);
+    osc.start(now);
+    osc.stop(now + 0.2);
+  } catch (e) {
+    // Fail silently — audio is a nice-to-have, never block scanning
+  }
+}
+
 function escHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
@@ -925,6 +961,7 @@ function setBarcode(value, format = '') {
   if (currentBarcode) {
     barcodeDisplay.textContent = currentBarcode;
     barcodeDisplay.classList.remove('empty');
+    barcodeDisplay.classList.add('success');
     formatTag.textContent = currentFormat;
     entryCard.classList.add('armed');
     addBtn.disabled = false;
@@ -933,6 +970,7 @@ function setBarcode(value, format = '') {
   } else {
     barcodeDisplay.textContent = 'Scan or tap here to enter manually';
     barcodeDisplay.classList.add('empty');
+    barcodeDisplay.classList.remove('success');
     formatTag.textContent = '';
     entryCard.classList.remove('armed');
     addBtn.disabled = true;
@@ -1183,6 +1221,7 @@ async function startScanner() {
       qtyInput.focus();
       qtyInput.select();
       vibrate(60);
+      playBeep();
     });
 
     placeholder.classList.add('hidden');
