@@ -1054,6 +1054,11 @@ let currentFormat = '';
 let mergeDuplicates = true;
 let counts = [];
 let lastScannedBarcode = '';
+// Latched true once we've handled a read in the current camera session.
+// Reset to false each time the camera is started. Prevents the beep / vibrate
+// from re-firing while the camera is winding down or while ZXing produces
+// multiple back-to-back reads of the same in-frame barcode.
+let handledThisScan = false;
 let lastScanTime = 0;
 
 // Catalog (SKU validation) — Map<lowercase SKU, { sku, name, subcategory, expected }>
@@ -1543,6 +1548,8 @@ clearBtn.addEventListener('click', () => {
    ==================================================================== */
 async function startScanner() {
   clearError();
+  // Reset the single-shot latch for this new camera session
+  handledThisScan = false;
 
   // Pre-flight checks with clear, actionable error messages
   if (!window.isSecureContext) {
@@ -1568,12 +1575,21 @@ async function startScanner() {
       }
     }, videoEl, (result) => {
       if (!result) return;
+      // Single-shot latch: once we've fired feedback for this camera-on session,
+      // ignore everything else until the camera is started again. ZXing can fire
+      // the callback multiple times per second on a clear barcode, and the
+      // existing same-text/1.5s debounce doesn't catch reads where the format
+      // differs (e.g. UPC-A and EAN-13 of the same number).
+      if (handledThisScan) return;
+
       const text = result.getText();
       const fmt = result.getBarcodeFormat ? String(result.getBarcodeFormat()) : '';
       const now = Date.now();
       if (text === lastScannedBarcode && (now - lastScanTime) < 1500) return;
       lastScannedBarcode = text;
       lastScanTime = now;
+      handledThisScan = true; // latch immediately, before any async work
+
       setBarcode(text, fmt);
       // currentScanIsValid is set by setBarcode based on catalog lookup
       if (currentScanIsValid) {
