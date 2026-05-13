@@ -390,6 +390,122 @@ header {
   border-color: #1a7a3e;
   color: white;
 }
+.barcode-display.unknown {
+  background: var(--cranberry);
+  border-color: var(--cranberry);
+  color: white;
+}
+
+/* Item info chip — shown under the barcode field when scan matches a known SKU */
+.item-info {
+  margin-top: 8px;
+  padding: 10px 14px;
+  background: rgba(26, 122, 62, 0.08);
+  border-left: 3px solid #1a7a3e;
+  border-radius: var(--radius-sm);
+  font-size: 12.5px;
+  color: var(--ink);
+  display: none;
+  line-height: 1.5;
+}
+.item-info.show { display: block; }
+.item-info.unknown {
+  background: rgba(175, 0, 63, 0.08);
+  border-left-color: var(--cranberry);
+  color: var(--cranberry);
+}
+.item-info .item-name {
+  font-weight: 600;
+  display: block;
+  margin-bottom: 2px;
+}
+.item-info .item-meta {
+  font-family: var(--font-display);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--ink-faint);
+  text-transform: uppercase;
+}
+.item-info.unknown .item-meta { color: rgba(175, 0, 63, 0.7); }
+
+/* Catalog status banner */
+.catalog-banner {
+  margin-bottom: 10px;
+  padding: 10px 14px;
+  background: white;
+  border: 1px solid var(--silver);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 11.5px;
+  box-shadow: var(--shadow-card);
+}
+.catalog-banner .cb-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink);
+  min-width: 0;
+}
+.catalog-banner .cb-icon {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+.catalog-banner .cb-icon svg { width: 14px; height: 14px; }
+.catalog-banner.loaded .cb-icon { background: rgba(26, 122, 62, 0.15); color: #1a7a3e; }
+.catalog-banner.unloaded .cb-icon { background: rgba(48, 8, 38, 0.08); color: var(--ink-faint); }
+.catalog-banner .cb-text { min-width: 0; }
+.catalog-banner .cb-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.catalog-banner.loaded .cb-title { color: #1a7a3e; }
+.catalog-banner.unloaded .cb-title { color: var(--ink-faint); }
+.catalog-banner .cb-detail {
+  font-size: 11.5px;
+  color: var(--ink-soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 240px;
+}
+.catalog-banner .cb-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.catalog-banner .btn-catalog {
+  font-family: var(--font-display);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 6px 12px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--silver);
+  background: white;
+  color: var(--ink);
+  cursor: pointer;
+  white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+}
+.catalog-banner .btn-catalog:active { background: var(--cerise); color: white; border-color: var(--cerise); }
+.catalog-banner .btn-catalog.primary {
+  background: var(--cerise);
+  color: white;
+  border-color: var(--cerise);
+}
+
+/* Disabled add button distinction */
+.btn-primary[disabled].blocked {
+  background: var(--cranberry);
+  color: white;
+  opacity: 0.7;
+}
 
 .barcode-input {
   width: 100%;
@@ -724,6 +840,30 @@ header {
   <div class="eyebrow" style="margin: 4px 4px 0;">Physical count</div>
   <div class="subhead">Stock count</div>
 
+  <!-- Catalog status banner -->
+  <div class="catalog-banner unloaded" id="catalogBanner">
+    <div class="cb-status">
+      <div class="cb-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+          <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+          <line x1="12" y1="22.08" x2="12" y2="12"/>
+        </svg>
+      </div>
+      <div class="cb-text">
+        <div class="cb-title" id="catalogTitle">No catalog loaded</div>
+        <div class="cb-detail" id="catalogDetail">Unknown SKUs cannot be added to the session</div>
+      </div>
+    </div>
+    <div class="cb-actions">
+      <label class="btn-catalog primary" style="cursor:pointer;">
+        Load
+        <input type="file" accept=".json" onchange="handleCatalogLoad(event)" style="display:none;">
+      </label>
+      <button class="btn-catalog" id="catalogClearBtn" onclick="clearCatalog()" style="display:none;">Clear</button>
+    </div>
+  </div>
+
   <!-- Camera viewport -->
   <div class="viewport">
     <video id="video" playsinline muted autoplay></video>
@@ -770,6 +910,10 @@ header {
         <span class="fmt" id="formatTag"></span>
       </div>
       <div class="barcode-display empty" id="barcodeDisplay">Scan or tap here to enter manually</div>
+      <div class="item-info" id="itemInfo">
+        <span class="item-name" id="itemInfoName"></span>
+        <span class="item-meta" id="itemInfoMeta"></span>
+      </div>
     </div>
 
     <div class="field-block">
@@ -866,6 +1010,15 @@ const mergeSwitch = document.getElementById('mergeSwitch');
 const toast = document.getElementById('toast');
 const errorBanner = document.getElementById('errorBanner');
 
+// DOM refs added for catalog feature
+const catalogBanner = document.getElementById('catalogBanner');
+const catalogTitle = document.getElementById('catalogTitle');
+const catalogDetail = document.getElementById('catalogDetail');
+const catalogClearBtn = document.getElementById('catalogClearBtn');
+const itemInfo = document.getElementById('itemInfo');
+const itemInfoName = document.getElementById('itemInfoName');
+const itemInfoMeta = document.getElementById('itemInfoMeta');
+
 sessionIdEl.textContent = SESSION_ID;
 
 // State
@@ -877,6 +1030,40 @@ let mergeDuplicates = true;
 let counts = [];
 let lastScannedBarcode = '';
 let lastScanTime = 0;
+
+// Catalog (SKU validation) — Map<lowercase SKU, { sku, name, subcategory, expected }>
+// Stored separately from session counts so it survives "Clear All" and is shared
+// across sessions. nullCatalog === no catalog loaded → validation off.
+const CATALOG_STORAGE_KEY = 'illumia.stockcount.catalog.v1';
+let catalog = null;          // null | { sourceMonth, exportedAt, itemCount, byKey: Map }
+let currentScanIsValid = true; // false when scan failed catalog lookup
+let currentScanItem = null;    // matched catalog entry, if any
+
+function loadCatalog() {
+  try {
+    const raw = localStorage.getItem(CATALOG_STORAGE_KEY);
+    if (!raw) return;
+    const data = JSON.parse(raw);
+    if (!data || !Array.isArray(data.items)) return;
+    const byKey = new Map();
+    for (const it of data.items) {
+      if (it && it.sku) byKey.set(String(it.sku).toLowerCase(), it);
+    }
+    catalog = {
+      sourceMonth: data.sourceMonth || '',
+      exportedAt: data.exportedAt || '',
+      itemCount: data.itemCount || data.items.length,
+      byKey,
+    };
+  } catch(e) { console.warn('Could not load catalog', e); }
+}
+function saveCatalog(rawData) {
+  try { localStorage.setItem(CATALOG_STORAGE_KEY, JSON.stringify(rawData)); }
+  catch(e) { showToast('Catalog too large to save locally', 'error'); }
+}
+function clearCatalogStorage() {
+  try { localStorage.removeItem(CATALOG_STORAGE_KEY); } catch(e) {}
+}
 
 /* ====================================================================
    Persistence
@@ -894,6 +1081,77 @@ function loadState() {
     mergeSwitch.classList.toggle('on', mergeDuplicates);
     mergeSwitch.setAttribute('aria-checked', mergeDuplicates ? 'true' : 'false');
   } catch(e) {}
+}
+
+/* ====================================================================
+   Catalog handlers
+   ==================================================================== */
+function handleCatalogLoad(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const data = JSON.parse(e.target.result);
+      // Sanity-check the shape
+      if (!data || !Array.isArray(data.items)) {
+        throw new Error('Not a valid scanner catalog file. Export one from the tracker.');
+      }
+      // Build the lookup map
+      const byKey = new Map();
+      for (const it of data.items) {
+        if (it && it.sku) byKey.set(String(it.sku).toLowerCase(), it);
+      }
+      if (byKey.size === 0) throw new Error('Catalog file contains no SKUs');
+      catalog = {
+        sourceMonth: data.sourceMonth || '',
+        exportedAt: data.exportedAt || '',
+        itemCount: byKey.size,
+        byKey,
+      };
+      saveCatalog(data); // persist exactly what was uploaded
+      updateCatalogBanner();
+      // If the user already had a scan loaded, re-validate it
+      if (currentBarcode) setBarcode(currentBarcode, currentFormat);
+      showToast(`Catalog loaded · ${byKey.size} SKUs · ${data.sourceMonth || 'unspecified period'}`, 'success');
+    } catch (err) {
+      showToast('Could not load catalog: ' + err.message, 'error');
+    }
+  };
+  reader.onerror = () => showToast('Failed to read catalog file', 'error');
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+function clearCatalog() {
+  if (!confirm('Clear the loaded catalog? SKU validation will be turned off and any SKU can be added to the session.')) return;
+  catalog = null;
+  clearCatalogStorage();
+  updateCatalogBanner();
+  if (currentBarcode) setBarcode(currentBarcode, currentFormat); // re-evaluate without catalog
+  showToast('Catalog cleared');
+}
+
+function updateCatalogBanner() {
+  if (catalog) {
+    catalogBanner.classList.remove('unloaded');
+    catalogBanner.classList.add('loaded');
+    catalogTitle.textContent = `Catalog loaded · ${catalog.itemCount} SKUs`;
+    catalogDetail.textContent = catalog.sourceMonth || 'Custom catalog';
+    catalogClearBtn.style.display = '';
+  } else {
+    catalogBanner.classList.remove('loaded');
+    catalogBanner.classList.add('unloaded');
+    catalogTitle.textContent = 'No catalog loaded';
+    catalogDetail.textContent = 'Load a catalog to validate scans against your SKU list';
+    catalogClearBtn.style.display = 'none';
+  }
+}
+
+// Look up a barcode in the catalog. Returns the catalog entry or null.
+function catalogLookup(barcode) {
+  if (!catalog) return null;
+  return catalog.byKey.get(String(barcode || '').toLowerCase()) || null;
 }
 
 /* ====================================================================
@@ -919,33 +1177,58 @@ function vibrate(pattern = 60) {
 
 // Beep on successful scan — uses Web Audio API, no file needed
 let audioCtx = null;
-function playBeep() {
+function ensureAudio() {
   try {
-    // Create the audio context lazily; iOS requires it to be created after a user gesture
     if (!audioCtx) {
       const AC = window.AudioContext || window.webkitAudioContext;
-      if (!AC) return;
+      if (!AC) return null;
       audioCtx = new AC();
     }
-    // iOS sometimes suspends the context — resume before playing
     if (audioCtx.state === 'suspended') audioCtx.resume();
+    return audioCtx;
+  } catch(e) { return null; }
+}
 
-    const now = audioCtx.currentTime;
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    // Clean, short, bright "ding" — two-stage tone like a real scanner
+function playBeep() {
+  // Clean, short, bright "ding" — two-stage rising tone like a real scanner
+  const ctx = ensureAudio();
+  if (!ctx) return;
+  try {
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
     osc.type = 'sine';
     osc.frequency.setValueAtTime(1200, now);
     osc.frequency.exponentialRampToValueAtTime(1800, now + 0.08);
     gain.gain.setValueAtTime(0.0001, now);
     gain.gain.exponentialRampToValueAtTime(0.35, now + 0.01);
     gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
-    osc.connect(gain).connect(audioCtx.destination);
+    osc.connect(gain).connect(ctx.destination);
     osc.start(now);
     osc.stop(now + 0.2);
-  } catch (e) {
-    // Fail silently — audio is a nice-to-have, never block scanning
-  }
+  } catch (e) { /* audio is a nice-to-have */ }
+}
+
+function playErrorBeep() {
+  // Lower, descending two-note "buzz" — distinctly different from playBeep
+  // so users hear "wrong SKU" without looking at the screen.
+  const ctx = ensureAudio();
+  if (!ctx) return;
+  try {
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(440, now);
+    osc.frequency.setValueAtTime(330, now + 0.12);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.2, now + 0.01);
+    gain.gain.setValueAtTime(0.2, now + 0.22);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.3);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.32);
+  } catch (e) { /* nice-to-have */ }
 }
 
 function escHtml(s) {
@@ -958,22 +1241,71 @@ function escHtml(s) {
 function setBarcode(value, format = '') {
   currentBarcode = (value || '').trim();
   currentFormat = format || '';
-  if (currentBarcode) {
-    barcodeDisplay.textContent = currentBarcode;
-    barcodeDisplay.classList.remove('empty');
-    barcodeDisplay.classList.add('success');
-    formatTag.textContent = currentFormat;
-    entryCard.classList.add('armed');
-    addBtn.disabled = false;
-    const existing = counts.find(c => c.barcode === currentBarcode);
-    qtyHint.textContent = existing && mergeDuplicates ? `Currently in session: ${existing.qty}` : '';
-  } else {
+
+  // Reset visual state
+  barcodeDisplay.classList.remove('empty', 'success', 'unknown');
+  itemInfo.classList.remove('show', 'unknown');
+  addBtn.classList.remove('blocked');
+
+  if (!currentBarcode) {
     barcodeDisplay.textContent = 'Scan or tap here to enter manually';
     barcodeDisplay.classList.add('empty');
-    barcodeDisplay.classList.remove('success');
     formatTag.textContent = '';
     entryCard.classList.remove('armed');
     addBtn.disabled = true;
+    addBtn.textContent = 'Add to count';
+    qtyHint.textContent = '';
+    currentScanIsValid = true;
+    currentScanItem = null;
+    return;
+  }
+
+  // We have a barcode. Run validation if a catalog is loaded.
+  barcodeDisplay.textContent = currentBarcode;
+  formatTag.textContent = currentFormat;
+  entryCard.classList.add('armed');
+
+  const match = catalogLookup(currentBarcode);
+  currentScanItem = match;
+
+  if (!catalog) {
+    // No catalog → no validation, classic "any barcode is fine" behavior
+    barcodeDisplay.classList.add('success');
+    currentScanIsValid = true;
+    addBtn.disabled = false;
+    addBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add to count`;
+  } else if (match) {
+    // Known SKU
+    barcodeDisplay.classList.add('success');
+    currentScanIsValid = true;
+    addBtn.disabled = false;
+    addBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add to count`;
+
+    // Item info chip
+    itemInfoName.textContent = match.name || '(no description)';
+    const metaBits = [];
+    if (match.subcategory) metaBits.push(match.subcategory);
+    if (typeof match.expected === 'number') metaBits.push(`Expected: ${match.expected}`);
+    itemInfoMeta.textContent = metaBits.join(' · ');
+    itemInfo.classList.add('show');
+  } else {
+    // Unknown SKU — block adding it
+    barcodeDisplay.classList.add('unknown');
+    currentScanIsValid = false;
+    addBtn.disabled = true;
+    addBtn.classList.add('blocked');
+    addBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg> SKU not in catalog`;
+
+    itemInfoName.textContent = 'Not in catalog';
+    itemInfoMeta.textContent = 'This barcode is not in the loaded inventory. Verify the item, the catalog, or clear the catalog to disable validation.';
+    itemInfo.classList.add('show', 'unknown');
+  }
+
+  // Existing-count hint, only when valid (or no catalog)
+  if (currentScanIsValid) {
+    const existing = counts.find(c => c.barcode === currentBarcode);
+    qtyHint.textContent = existing && mergeDuplicates ? `Currently in session: ${existing.qty}` : '';
+  } else {
     qtyHint.textContent = '';
   }
 }
@@ -1017,6 +1349,12 @@ qtyInput.addEventListener('focus', () => qtyInput.select());
    ==================================================================== */
 addBtn.addEventListener('click', () => {
   if (!currentBarcode) return;
+  // When a catalog is loaded, block unknown SKUs from entering the session.
+  if (catalog && !currentScanIsValid) {
+    showToast('SKU not in catalog — cannot add', 'error');
+    playErrorBeep();
+    return;
+  }
   const qty = parseInt(qtyInput.value, 10);
   if (isNaN(qty) || qty < 0) {
     showToast('Enter a valid quantity', 'warn');
@@ -1039,7 +1377,10 @@ addBtn.addEventListener('click', () => {
       barcode: currentBarcode,
       format: currentFormat,
       qty,
-      ts: Date.now()
+      ts: Date.now(),
+      // Stash item name from catalog (if any) for nicer display in the session list.
+      // Survives clears since it's just embedded text on each entry.
+      name: currentScanItem ? (currentScanItem.name || '') : '',
     });
   } else {
     counts = [counts.find(c => c.barcode === currentBarcode), ...counts.filter(c => c.barcode !== currentBarcode)];
@@ -1072,7 +1413,7 @@ function renderCounts() {
     <div class="count-row${c.merged ? ' merged' : ''}" data-id="${c.id}">
       <div class="count-info">
         <div class="count-code">${escHtml(c.barcode)}</div>
-        <div class="count-meta">${escHtml(c.format || 'unknown')} · ${new Date(c.ts).toLocaleTimeString()}</div>
+        <div class="count-meta">${c.name ? escHtml(c.name) + ' · ' : ''}${escHtml(c.format || 'unknown')} · ${new Date(c.ts).toLocaleTimeString()}</div>
       </div>
       <div class="count-qty">${c.qty}</div>
       <button class="delete-btn" data-id="${c.id}" aria-label="Remove">
@@ -1218,10 +1559,18 @@ async function startScanner() {
       lastScannedBarcode = text;
       lastScanTime = now;
       setBarcode(text, fmt);
-      qtyInput.focus();
-      qtyInput.select();
-      vibrate(60);
-      playBeep();
+      // currentScanIsValid is set by setBarcode based on catalog lookup
+      if (currentScanIsValid) {
+        qtyInput.focus();
+        qtyInput.select();
+        vibrate(60);
+        playBeep();
+      } else {
+        // Unknown SKU — don't auto-focus quantity (it's blocked anyway).
+        // Distinct error pattern: 3 short pulses + low descending tone.
+        vibrate([60, 60, 60, 60, 60]);
+        playErrorBeep();
+      }
     });
 
     placeholder.classList.add('hidden');
@@ -1278,6 +1627,8 @@ document.addEventListener('visibilitychange', () => {
    Init
    ==================================================================== */
 loadState();
+loadCatalog();
+updateCatalogBanner();
 renderCounts();
 setBarcode('', '');
 
